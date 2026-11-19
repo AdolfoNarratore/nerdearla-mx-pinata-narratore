@@ -1,6 +1,6 @@
 # Arma tu piñata
 
-Proyecto base para el challenge de AWS en Nerdearla México. Arma tu propia piñata, decide qué trae adentro y publícala en AWS con [AWS Amplify Hosting](https://aws.amazon.com/amplify/hosting/?trk=54e40584-a59e-4b8d-a5b4-ecfbd722ff7e&sc_channel=el).
+Proyecto base para el challenge de AWS en Nerdearla México. Arma tu propia piñata, decide qué trae adentro y publícala en AWS con [AWS Amplify](https://aws.amazon.com/amplify/hosting/?trk=54e40584-a59e-4b8d-a5b4-ecfbd722ff7e&sc_channel=el).
 
 No necesitas instalar nada. Puedes hacer todo desde el navegador, también desde tu celular.
 
