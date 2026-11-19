@@ -3,18 +3,14 @@
 // TODO 4: ¿Qué tiene tu piñata adentro?
 // Pon cada cosa entre comillas y sepáralas con comas. En el celular puedes usar el teclado de emojis.
 // Ejemplo: const dulces = ['🍬', '🍭', '🥜', '🍊', '🦖'];
-const dulces = ['🍬', '🍭', '🍫', '🥜', '🍊', '🍡'];
-
-// TODO 5: ¿Cuántos picos tiene tu piñata?
-// La piñata tradicional tiene 7. Prueba con un número del 3 al 12.
-const picos = 7;
+const dulces = ['🥜', '🍊', '🍬', '🍭', '🎋', '🍫'];
 
 // TODO 6: ¿Cuántos golpes aguanta antes de romperse?
-const resistencia = 8;
+const resistencia = 10;
 
 // TODO 7: ¿Qué tan traviesa es la persona que jala la cuerda? Elige del 0 al 3.
 // 0 = no se mueve, 1 = se mece, 2 = la suben, la bajan y le dan jalones, 3 = no tiene piedad
-const travesura = 1;
+const travesura = 2;
 
 
 // ===== A partir de aquí no necesitas cambiar nada, pero puedes explorar =====
@@ -40,7 +36,6 @@ const niveles = [
 
 const limitar = (n, min, max) => Math.min(max, Math.max(min, Math.round(Number(n) || 0)));
 const golpesNecesarios = limitar(resistencia, 1, 999);
-const numeroDePicos = limitar(picos, 3, 12);
 const sinMovimiento = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const movimiento = sinMovimiento ? niveles[0] : niveles[limitar(travesura, 0, 3)];
 const contenido = dulces.length > 0 ? dulces : ['🍬'];
@@ -75,12 +70,8 @@ let piezas = [];
 // ----- Dibujo de la piñata (SVG) -----
 
 const SVG = 'http://www.w3.org/2000/svg';
-const RADIO = 62; // centro de la piñata
-const LARGO = 112; // largo de cada pico
 
 const azar = (min, max) => min + Math.random() * (max - min);
-const polar = (r, a) => [r * Math.cos(a), r * Math.sin(a)];
-const entre = (p, q, f) => [p[0] + (q[0] - p[0]) * f, p[1] + (q[1] - p[1]) * f];
 const xy = (p) => `${p[0].toFixed(1)} ${p[1].toFixed(1)}`;
 
 function crear(etiqueta, atributos, padre) {
@@ -92,63 +83,83 @@ function crear(etiqueta, atributos, padre) {
   return elemento;
 }
 
+// Esta piñata es un burro: cada parte es un rectángulo con tiras de papel de china
+const FRANJA = 13;
+
+function parte(padre, { x, y, ancho, alto, transformar, color = 1 }) {
+  const grupo = crear('g', transformar ? { transform: transformar } : {}, padre);
+  let n = color;
+  for (let fila = y; fila < y + alto; fila += FRANJA) {
+    crear('rect', { x, y: fila, width: ancho, height: Math.min(FRANJA, y + alto - fila), class: `relleno-${n}` }, grupo);
+    if (fila + FRANJA < y + alto) {
+      crear('path', { d: `M${x + 3} ${fila + FRANJA} H${x + ancho - 3}`, class: `fleco trazo-${n}` }, grupo);
+    }
+    n = (n % 3) + 1;
+  }
+  crear('rect', { x, y, width: ancho, height: alto, rx: 6, fill: 'none', class: 'contorno' }, grupo);
+  return grupo;
+}
+
+function guardarPedazo(grupo, centro, angulo = Math.atan2(centro[1], centro[0])) {
+  conos.push({ grupo, angulo, centro });
+}
+
 function dibujarPinata() {
   dibujo.replaceChildren();
   conos = [];
 
-  // Los picos se reparten alrededor del centro, dejando un hueco arriba para la cuerda
-  const paso = (2 * Math.PI) / numeroDePicos;
-  const mitad = Math.min(paso * 0.42, 0.55);
+  // Cola de papel
+  const cola = crear('g', {}, dibujo);
+  [[-148, -30], [-151, -18], [-149, -6], [-145, 4], [-139, 12]].forEach((fin, i) => {
+    crear('path', { d: `M-106 -46 L${xy(fin)}`, class: `borla trazo-${(i % 3) + 1}` }, cola);
+  });
+  guardarPedazo(cola, [-130, -15]);
 
-  for (let i = 0; i < numeroDePicos; i++) {
-    const angulo = -Math.PI / 2 + paso / 2 + i * paso;
-    const base1 = polar(RADIO * 0.85, angulo - mitad);
-    const base2 = polar(RADIO * 0.85, angulo + mitad);
-    const punta = polar(RADIO + LARGO, angulo);
-    const color = (i % 3) + 1;
-    const franja = ((i + 1) % 3) + 1;
-
-    const grupo = crear('g', {}, dibujo);
-
-    // Borla de papel en la punta
-    for (let k = -2; k <= 2; k++) {
-      const fin = polar(RADIO + LARGO + 22, angulo + k * 0.06);
-      crear('path', { d: `M${xy(punta)} L${xy(fin)}`, class: `borla trazo-${((i + k + 3) % 3) + 1}` }, grupo);
-    }
-
-    crear('path', { d: `M${xy(base1)} L${xy(punta)} L${xy(base2)} Z`, class: `relleno-${color} contorno` }, grupo);
-
-    // Dos franjas en cada pico
-    for (const [desde, hasta] of [[0.3, 0.42], [0.6, 0.69]]) {
-      const puntos = [entre(base1, punta, desde), entre(base1, punta, hasta), entre(base2, punta, hasta), entre(base2, punta, desde)];
-      crear('path', { d: `M${puntos.map(xy).join(' L')} Z`, class: `relleno-${franja}` }, grupo);
-    }
-
-    conos.push({ grupo, angulo, centro: polar(RADIO + LARGO * 0.45, angulo) });
+  // Patas con sus cascos
+  for (const [x, color] of [[-96, 2], [-62, 3], [28, 2], [60, 3]]) {
+    const pata = parte(dibujo, { x, y: 26, ancho: 26, alto: 90, color });
+    crear('rect', { x, y: 112, width: 26, height: 14, rx: 4, fill: '#2B1D14' }, pata);
+    guardarPedazo(pata, [x + 13, 72]);
   }
 
-  // Centro con papel de china
-  const cuerpo = crear('g', {}, dibujo);
-  crear('circle', { r: RADIO, class: 'relleno-cuerpo contorno' }, cuerpo);
-  [RADIO - 10, RADIO - 32].forEach((r, i) => {
-    crear('circle', { r, class: `fleco trazo-${(i % 3) + 1}` }, cuerpo);
-  });
+  // Cuerpo: la cuerda lo sostiene del lomo, en (0, -62)
+  guardarPedazo(parte(dibujo, { x: -112, y: -62, ancho: 204, alto: 96, color: 1 }), [-10, -14], -Math.PI / 2);
 
-  // Grietas: aparecen poco a poco con cada golpe
+  // Cuello
+  guardarPedazo(parte(dibujo, { x: -20, y: -78, ancho: 40, alto: 84, color: 3, transformar: 'translate(70 -40) rotate(28)' }), [95, -75]);
+
+  // Orejas
+  for (const [x, y, giro] of [[96, -134, -20], [116, -138, 8]]) {
+    const oreja = crear('g', { transform: `translate(${x} ${y}) rotate(${giro})` }, dibujo);
+    crear('ellipse', { cx: 0, cy: -24, rx: 10, ry: 26, class: 'relleno-2 contorno' }, oreja);
+    crear('ellipse', { cx: 0, cy: -22, rx: 4, ry: 16, class: 'relleno-cuerpo' }, oreja);
+    guardarPedazo(oreja, [x, y - 24]);
+  }
+
+  // Cabeza con hocico y ojo
+  const cabeza = parte(dibujo, { x: -16, y: -24, ancho: 76, alto: 46, color: 1, transformar: 'translate(108 -118) rotate(22)' });
+  crear('rect', { x: 38, y: -22, width: 24, height: 42, rx: 9, class: 'relleno-cuerpo contorno' }, cabeza);
+  crear('circle', { cx: 52, cy: 8, r: 3, fill: '#2B1D14' }, cabeza);
+  crear('circle', { cx: 14, cy: -6, r: 5.5, fill: '#2B1D14' }, cabeza);
+  crear('circle', { cx: 15.5, cy: -7.5, r: 1.8, fill: '#FFFFFF' }, cabeza);
+  guardarPedazo(cabeza, [130, -105]);
+
+  // Grietas: aparecen poco a poco con cada golpe, solo sobre el cuerpo
   const capaGrietas = crear('g', {}, dibujo);
   grietas = [];
-  const total = 6;
-  for (let i = 0; i < total; i++) {
-    const angulo = (i / total) * 2 * Math.PI + azar(-0.3, 0.3);
-    let r = azar(4, 18);
-    let d = `M${xy(polar(r, angulo))}`;
-    while (r < RADIO + 45) {
-      r += azar(14, 24);
-      d += ` L${xy(polar(r, angulo + azar(-0.35, 0.35)))}`;
+  const dentro = ([x, y]) => x > -108 && x < 88 && y > -58 && y < 30;
+  for (let i = 0; i < 6; i++) {
+    let punto = [azar(-80, 60), azar(-40, 15)];
+    let rumbo = azar(0, 2 * Math.PI);
+    let d = `M${xy(punto)}`;
+    for (let paso = 0; paso < 6 && dentro(punto); paso++) {
+      rumbo += azar(-0.6, 0.6);
+      punto = [punto[0] + Math.cos(rumbo) * azar(12, 20), punto[1] + Math.sin(rumbo) * azar(12, 20)];
+      punto = [Math.min(88, Math.max(-108, punto[0])), Math.min(30, Math.max(-58, punto[1]))];
+      d += ` L${xy(punto)}`;
     }
     grietas.push(crear('path', { d, class: 'grieta' }, capaGrietas));
   }
-  grietas.sort(() => Math.random() - 0.5);
 }
 
 // ----- Golpes -----
